@@ -387,6 +387,8 @@ class StoryView extends StatefulWidget {
     this.inline = false,
     this.onVerticalSwipeComplete,
     this.indicatorColor = Colors.white,
+    this.decoration,
+    this.padding,
   });
 
   /// The pages to displayed.
@@ -422,13 +424,17 @@ class StoryView extends StatefulWidget {
   // Indicator Color
   final Color indicatorColor;
 
+
+  final Decoration? decoration;
+
+  final EdgeInsetsGeometry? padding;
   @override
   State<StatefulWidget> createState() {
     return StoryViewState();
   }
 }
 
-class StoryViewState extends State<StoryView> with TickerProviderStateMixin {
+class StoryViewState extends State<StoryView> with TickerProviderStateMixin, WidgetsBindingObserver {
   AnimationController? _animationController;
   Animation<double>? _currentAnimation;
   Timer? _nextDebouncer;
@@ -449,6 +455,7 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin {
 
   @override
   void initState() {
+    WidgetsBinding.instance.addObserver(this);
     super.initState();
 
     // All pages after the first unshown page should have their shown value as
@@ -486,6 +493,10 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin {
           _removeNextHold();
           _goBack();
           break;
+        case PlaybackState.beginFirst:
+          _removeNextHold();
+          _goBeginFirst();
+          break;
       }
     });
 
@@ -493,7 +504,45 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        debugPrint("App resumed");
+        if (widget.controller.playbackNotifier.value == PlaybackState.pause) {// Tiếp tục phát khi app quay lại
+          widget.controller.play();
+        }
+        break;
+      case AppLifecycleState.paused:
+        debugPrint("App paused");
+        if (widget.controller.playbackNotifier.value == PlaybackState.play) {
+          widget.controller.pause();// Tạm dừng khi app bị dừng
+        }
+        break;
+      case AppLifecycleState.inactive:
+        debugPrint("App inactive");
+        if (widget.controller.playbackNotifier.value == PlaybackState.play) {
+          widget.controller.pause(); // Tạm dừng nếu ứng dụng không nhận input
+        }
+        break;
+
+      case AppLifecycleState.detached:
+        debugPrint("App detached");
+        widget.controller.dispose(); // Ngừng hoàn toàn khi ứng dụng bị đóng
+        break;
+      case AppLifecycleState.hidden:
+        debugPrint("App is hidden");
+        if (widget.controller.playbackNotifier.value == PlaybackState.play) {
+          widget.controller.pause(); // Tạm dừng nếu ứng dụng không nhận input
+        }
+        break;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _clearDebouncer();
 
     _animationController?.dispose();
@@ -579,6 +628,25 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin {
     }
   }
 
+  void _goBeginFirst() {
+    _animationController!.stop();
+
+    if (_currentStory == null) {
+      widget.storyItems.last?.shown = false;
+    }
+
+    if (_currentStory == widget.storyItems.first) {
+      _beginPlay();
+    } else {
+      _currentStory?.shown = false;
+      // final previous = widget.storyItems;
+      for(int i =0; i < widget.storyItems.length; i++) {
+        widget.storyItems[i]?.shown = false;
+      }
+      _beginPlay();
+    }
+  }
+
   void _goForward() {
     if (_currentStory != widget.storyItems.last) {
       _animationController!.stop();
@@ -616,7 +684,8 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      padding: widget.padding,
+      decoration: widget.decoration ?? const BoxDecoration(color: Colors.white),
       child: Stack(
         children: <Widget>[
           _currentView,
