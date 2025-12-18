@@ -684,7 +684,6 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin, Wid
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: widget.padding,
       decoration: widget.decoration ?? const BoxDecoration(color: Colors.white),
       child: Stack(
         children: <Widget>[
@@ -697,7 +696,7 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin, Wid
                 bottom: widget.inline ? false : true,
                 // we use SafeArea here for notched and bezeles phones
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: widget.padding ?? const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
