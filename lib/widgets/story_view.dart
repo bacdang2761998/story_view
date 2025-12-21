@@ -389,6 +389,9 @@ class StoryView extends StatefulWidget {
     this.indicatorColor = Colors.white,
     this.decoration,
     this.padding,
+    this.onNext,
+    this.onPrevious,
+    this.onCurrentPage,
   });
 
   /// The pages to displayed.
@@ -428,6 +431,10 @@ class StoryView extends StatefulWidget {
   final Decoration? decoration;
 
   final EdgeInsetsGeometry? padding;
+
+  final Function(int index)? onPrevious;
+  final Function(int index)? onNext;
+  final Function(int index)? onCurrentPage;
   @override
   State<StatefulWidget> createState() {
     return StoryViewState();
@@ -445,6 +452,10 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin, Wid
 
   StoryItem? get _currentStory {
     return widget.storyItems.firstWhereOrNull((it) => !it!.shown);
+  }
+
+  int get _currentIndex {
+    return widget.storyItems.indexWhere((it) => !it!.shown);
   }
 
   Widget get _currentView {
@@ -473,6 +484,7 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin, Wid
     }
 
     _playbackSubscription = widget.controller.playbackNotifier.listen((playbackStatus) {
+      final _index = _currentIndex;
       switch (playbackStatus) {
         case PlaybackState.play:
           _removeNextHold();
@@ -485,11 +497,13 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin, Wid
           break;
 
         case PlaybackState.next:
+          widget.onNext?.call(_index);
           _removeNextHold();
           _goForward();
           break;
 
         case PlaybackState.previous:
+          widget.onPrevious?.call(_index);
           _removeNextHold();
           _goBack();
           break;
@@ -568,6 +582,7 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin, Wid
     if (widget.onStoryShow != null) {
       widget.onStoryShow!(storyItem);
     }
+    widget.onCurrentPage?.call(_currentIndex);
 
     _animationController = AnimationController(duration: storyItem.duration, vsync: this);
 
@@ -684,7 +699,6 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin, Wid
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: widget.padding,
       decoration: widget.decoration ?? const BoxDecoration(color: Colors.white),
       child: Stack(
         children: <Widget>[
@@ -697,7 +711,7 @@ class StoryViewState extends State<StoryView> with TickerProviderStateMixin, Wid
                 bottom: widget.inline ? false : true,
                 // we use SafeArea here for notched and bezeles phones
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: widget.padding ?? const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
